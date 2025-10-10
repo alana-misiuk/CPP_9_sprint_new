@@ -62,19 +62,19 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ${PROJECT_NAME}_imp)
 # Рекурсивно ищем все используемые в тестах .cpp файлы
 file(GLOB TEST_SRC_FILES "${CMAKE_SOURCE_DIR}/tests/*.cpp")
 
-add_executable(${PROJECT_NAME}_tests "${TEST_SRC_FILES}")
-target_link_libraries(${PROJECT_NAME}_tests PRIVATE
+add_executable(unit_tests "${TEST_SRC_FILES}")
+target_link_libraries(unit_tests PRIVATE
     ${PROJECT_NAME}_imp
     GTest::GTest
     GTest::Main
     STDEXEC::stdexec
     sfml-graphics sfml-window sfml-system)
 
-target_include_directories(${PROJECT_NAME}_tests PUBLIC 
+target_include_directories(unit_tests PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${stdexec_SOURCE_DIR}/include
     ${matplotplusplus_SOURCE_DIR}/source)
 
 # Включаем тестирование
 enable_testing()
-add_test(NAME ${PROJECT_NAME}_tests COMMAND ${PROJECT_NAME}_tests)
+add_test(NAME unit_tests COMMAND unit_tests)

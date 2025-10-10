@@ -12,7 +12,7 @@
             "args": [
             ],
             "cwd": "${workspaceFolder}/build",
-            "preLaunchTask": "GCC: Build Debug app",
+            "preLaunchTask": "GCC: Build Debug",
             "initCommands": ["settings set target.disable-aslr false"]
         },
         {
@@ -23,7 +23,7 @@
             "args": [
             ],
             "cwd": "${workspaceFolder}/build",
-            "preLaunchTask": "GCC: Build Release app",
+            "preLaunchTask": "GCC: Build Release",
             "initCommands": ["settings set target.disable-aslr false"]
         }
     ]

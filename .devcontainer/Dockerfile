@@ -7,7 +7,7 @@ RUN apt update
 # Install common tools
 RUN apt install -y python3-minimal python3-pip pipx git less vim sudo cmake make g++-15 clang-format clangd-20
 
-# Install project required tools
+# Install additional tools and libraries
 RUN apt install -y libsfml-dev
 
 # Cleanup
@@ -24,6 +24,9 @@ RUN ln -fs /usr/bin/gcc-15 /usr/bin/gcc
 ARG USERNAME=dev
 ARG USER_UID=1000
 ARG USER_GID=1000
+
+RUN printf "\n\n\nReceived args:\n\tUSERNAME=$USERNAME\n\tUSER_UID=$USER_UID\n\tUSER_GID=$USER_GID\n"
+RUN test -n "$USER_UID" && test -n "$USER_GID" || (printf "\n\n\n\tERROR: USER_UID (equal to '$USER_UID') or USER_GID (equal to '$USER_GID') is not set!\n\n\n" && exit 1)
 
 # Delete Ubuntu user to avoid "UID/GID is already exists" problems
 RUN set -e; \
