@@ -3,7 +3,7 @@
 #include <SFML/Graphics.hpp>
 #include <stdexec/execution.hpp>
 
-#include "types.hpp"
+#include "types_core.hpp"
 
 class SfmlEventHandler {
 public:
@@ -14,24 +14,23 @@ public:
         sf::RenderWindow &window_;
         RenderSettings render_settings_;
         AppState &state_;
-        sf::Clock &zoom_clock_;
 
         static constexpr float ZOOM_INTERVAL_MS = 100.0f;
 
         template <typename R>
-        explicit OperationState(R &&r, sf::RenderWindow &window, RenderSettings render_settings, AppState &state,
-                                sf::Clock &zoom_clock)
-            : receiver_{std::forward<R>(r)}, window_{window}, render_settings_{render_settings}, state_{state},
-              zoom_clock_{zoom_clock} {}
+        explicit OperationState(R &&r, sf::RenderWindow &window, RenderSettings render_settings, AppState &state)
+            : receiver_{std::forward<R>(r)}, window_{window}, render_settings_{render_settings}, state_{state} {}
 
-        
-        /* Ваш код здесь  */
+        /* Ваш код метода start() здесь */
 
     private:
         void HandleEvents() {
             sf::Event event;
             while (window_.pollEvent(event)) {
                 switch (event.type) {
+                case sf::Event::Closed:
+                state_.should_exit = true;
+                break;
 
                 /* Ваш код здесь  */
 
@@ -41,19 +40,24 @@ public:
             }
         }
 
-        void HandleContinuousZoom() {
-            if ((state_.left_mouse_pressed || state_.right_mouse_pressed) &&
-                zoom_clock_.getElapsedTime().asMilliseconds() >= ZOOM_INTERVAL_MS) {
+        void HandleKeyPress(const sf::Event::KeyEvent &key) {
+            /* Ваш код здесь */
+        }
 
-                sf::Vector2i mouse_pos = sf::Mouse::getPosition(window_);
+        void HandleMousePress(const sf::Event::MouseButtonEvent &mouse) {
+            /* Ваш код здесь */
+        }
 
-                if (mouse_pos.x >= 0 && mouse_pos.x < static_cast<int>(render_settings_.width) && mouse_pos.y >= 0 &&
-                    mouse_pos.y < static_cast<int>(render_settings_.height)) {
-
-                    ZoomToPoint(mouse_pos.x, mouse_pos.y, state_.left_mouse_pressed);
-                    zoom_clock_.restart();
-                }
+        void HandleMouseRelease(const sf::Event::MouseButtonEvent &mouse) {
+            if (mouse.button == sf::Mouse::Left) {
+                state_.left_mouse_pressed = false;
+            } else if (mouse.button == sf::Mouse::Right) {
+                state_.right_mouse_pressed = false;
             }
+        }
+
+        void HandleAutoZoom() {
+            /* Ваш код здесь */
         }
 
         void ZoomToPoint(int pixel_x, int pixel_y, bool zoom_in, double factor = 0.8) {
@@ -65,20 +69,18 @@ public:
             const double zoom_factor = zoom_in ? factor : (1.0 / factor);
             const double new_width = state_.viewport.width() * zoom_factor;
             const double new_height = state_.viewport.height() * zoom_factor;
-
+            
             /* Ваш код обновления state_ здесь  */
         }
     };
 
-    SfmlEventHandler(sf::RenderWindow &window, RenderSettings render_settings, AppState &state, sf::Clock &zoom_clock)
-        : window_{window}, render_settings_{render_settings}, state_{state}, zoom_clock_{zoom_clock} {}
-
-    /* Ваш код здесь  */
-
-private:
-
     sf::RenderWindow &window_;
     RenderSettings render_settings_;
     AppState &state_;
-    sf::Clock &zoom_clock_;
+
+    SfmlEventHandler(sf::RenderWindow &window, RenderSettings render_settings, AppState &state)
+        : window_{window}, render_settings_{render_settings}, state_{state} {}
+
+    /* Ваш код методов connect() и get_completion_signatures() здесь */
+
 };

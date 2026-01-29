@@ -1,78 +1,87 @@
 #include <chrono>
+#include <memory>
 #include <print>
 #include <thread>
 #include <utility>
 
 #include <SFML/Graphics.hpp>
+
+#include <exec/any_sender_of.hpp>
 #include <exec/repeat_effect_until.hpp>
 #include <exec/static_thread_pool.hpp>
 #include <stdexec/execution.hpp>
 
-#include "mandelbrot.hpp"
-#include "mandelbrot_renderer.hpp"
+#include "mandelbrot_sender.hpp"
+#include "sfml_display_sender.hpp"
 #include "sfml_events_handler.hpp"
-#include "sfml_renderer.hpp"
+#include "types_sfml.hpp"
 
 using namespace std::chrono_literals;
-class FrameClock {
-public:
-    FrameClock() { Reset(); }
-
-    void Reset() noexcept { frame_start_ = std::chrono::steady_clock::now(); }
-    auto GetFrameTime() const noexcept { return std::chrono::steady_clock::now() - frame_start_; }
-
-private:
-    std::chrono::time_point<std::chrono::steady_clock> frame_start_;
-};
+namespace ex = stdexec;
 
 class WaitForFPS {
 public:
+    static constexpr float TARGET_FPS = 60.0f;
+    static constexpr float FRAME_TIME_MS = 1000.0f / TARGET_FPS;
 
+    explicit WaitForFPS(FrameClock &frame_clock, unsigned int target_fps)
+        : frame_clock_(frame_clock), frame_time_(1s / target_fps) {}
+
+    void operator()() {
+        auto cur_frame_duration = frame_clock_.GetFrameTime();
+
+        if (cur_frame_duration < frame_time_) {
+            std::this_thread::sleep_for(frame_time_ - cur_frame_duration);
+        }
+        frame_clock_.Reset();
+    }
+
+private:
+    FrameClock &frame_clock_;
+    const std::chrono::milliseconds frame_time_ = 1ms;
 };
 
 class MandelbrotApp {
-private:
-    RenderSettings render_settings_{.width = 800, .height = 600, .max_iterations = 100, .escape_radius = 2.0};
-
-    sf::RenderWindow window_;
-    sf::Image image_;
-    sf::Texture texture_;
-    sf::Sprite sprite_;
-    MandelbrotRenderer renderer_;
-    AppState state_;
-
 public:
-    MandelbrotApp()
-        : window_{sf::VideoMode{render_settings_.width, render_settings_.height}, "Mandelbrot Fractal"},
-          renderer_{THREAD_POOL_SIZE} {
-
-        image_.create(render_settings_.width, render_settings_.height);
-        texture_.create(render_settings_.width, render_settings_.height);
-
-        window_.setKeyRepeatEnabled(false);
+    MandelbrotApp() : compute_pool_{std::max(1u, std::thread::hardware_concurrency())}, sfml_thread_{1} {
+        std::println("hardware_concurrency: {}\n", std::thread::hardware_concurrency());
     }
 
     void Run() {
-        FrameClock frame_clock;
-        sf::Clock zoom_clock;
+        auto compute_sched = compute_pool_.get_scheduler();
+        auto sfml_sched = sfml_thread_.get_scheduler();
 
-        auto pipeline = SfmlEventHandler{window_, render_settings_, state_, zoom_clock} |  //
-                        stdexec::let_value([this]() {                                      //
-                            return CalculateMandelbrotAsyncSender{state_, render_settings_, renderer_};
-                        }) |
-                        stdexec::let_value([this](RenderResult data) {
-                            return SFMLRender{std::move(data), image_, texture_, sprite_, window_, render_settings_};
-                        }) |  //
-                        stdexec::then(WaitForFPS{frame_clock, 60});
+        auto initialize =
+            ex::on(sfml_sched,
+                   ex::just() | ex::then([this]() {
+                       state_ = std::make_unique<SfmlState>(  //
+                           RenderSettings{.width = 800, .height = 600, .max_iterations = 100, .escape_radius = 2.0});
+                   }));
+        ex::sync_wait(std::move(initialize));
 
-        auto repeated_pipeline =
-            std::move(pipeline) | stdexec::then([this]() { return state_.should_exit; }) | exec::repeat_effect_until();
+        auto process_frame = ex::just(); // Ваш код здесь
 
-        stdexec::sync_wait(std::move(repeated_pipeline));
+        auto repeated_pipeline = std::move(process_frame) | ex::then([this] { return state_->app_state.should_exit; }) |
+                                 exec::repeat_effect_until();
+        ex::sync_wait(std::move(repeated_pipeline));
     }
+
+private:
+    std::unique_ptr<SfmlState> state_;
+
+    exec::static_thread_pool compute_pool_;
+    exec::static_thread_pool sfml_thread_;
 };
 
 int main() {
+    std::println("=== Mandelbrot Fractal Renderer ===\n");
+    std::println("Controls:");
+    std::println("  Left Mouse Button  - Zoom In");
+    std::println("  Right Mouse Button - Zoom Out");
+    std::println("  X                  - Toggle Auto Zoom (infinite zoom to 'Seahorse Valley' point)");
+    std::println("  C                  - Reset to Initial View");
+    std::println("  Close Window       - Exit\n");
+
     try {
         MandelbrotApp app;
         app.Run();

@@ -3,19 +3,11 @@
 #include <complex>
 #include <cstdint>
 
+#include "types_core.hpp"
+
 namespace mandelbrot {
 
 using Complex = std::complex<double>;
-
-struct ViewPort {
-    double x_min{-2.5};
-    double x_max{1.5};
-    double y_min{-2.0};
-    double y_max{2.0};
-
-    [[nodiscard]] constexpr double width() const noexcept { return x_max - x_min; }
-    [[nodiscard]] constexpr double height() const noexcept { return y_max - y_min; }
-};
 
 struct RgbColor {
     std::uint8_t r;
