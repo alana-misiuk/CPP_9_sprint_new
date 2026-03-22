@@ -14,7 +14,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 # Ищем необходимые библиотеки
-find_package(GTest REQUIRED)
 find_package(SFML COMPONENTS graphics window system REQUIRED)
 
 include(FetchContent)
@@ -24,6 +23,35 @@ FetchContent_Declare(
   GIT_TAG origin/master
 )
 FetchContent_MakeAvailable(CPM)
+
+find_package(GTest QUIET)
+if(NOT GTest_FOUND)
+    FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.tar.gz
+    )
+    FetchContent_MakeAvailable(googletest)
+endif()
+
+if(TARGET GTest::GTest)
+    set(GTEST_LIB_TARGET GTest::GTest)
+elseif(TARGET GTest::gtest)
+    set(GTEST_LIB_TARGET GTest::gtest)
+elseif(TARGET gtest)
+    set(GTEST_LIB_TARGET gtest)
+else()
+    message(FATAL_ERROR "Unable to find a GTest library target")
+endif()
+
+if(TARGET GTest::Main)
+    set(GTEST_MAIN_TARGET GTest::Main)
+elseif(TARGET GTest::gtest_main)
+    set(GTEST_MAIN_TARGET GTest::gtest_main)
+elseif(TARGET gtest_main)
+    set(GTEST_MAIN_TARGET gtest_main)
+else()
+    message(FATAL_ERROR "Unable to find a GTest main target")
+endif()
 
 CPMAddPackage(
     NAME stdexec
@@ -65,8 +93,8 @@ file(GLOB TEST_SRC_FILES "${CMAKE_SOURCE_DIR}/tests/*.cpp")
 add_executable(${PROJECT_NAME}_tests "${TEST_SRC_FILES}")
 target_link_libraries(${PROJECT_NAME}_tests PRIVATE
     ${PROJECT_NAME}_imp
-    GTest::GTest
-    GTest::Main
+    ${GTEST_LIB_TARGET}
+    ${GTEST_MAIN_TARGET}
     STDEXEC::stdexec
     sfml-graphics sfml-window sfml-system)
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SFML/Config.hpp>
+#include <SFML/Graphics/Image.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Texture.hpp>
@@ -36,6 +37,7 @@ struct SfmlState {
     AppState app_state;
 
     sf::RenderWindow window;
+    sf::Image image;
     sf::Texture texture;
     sf::Sprite sprite;
     FrameBuffer fb;
@@ -49,6 +51,7 @@ struct SfmlState {
 
         window.setKeyRepeatEnabled(false);
 
+        image.create(render_settings.width, render_settings.height);
         texture.create(render_settings.width, render_settings.height);
         sprite.setTexture(texture);
     }

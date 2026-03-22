@@ -22,8 +22,8 @@ RUN ln -fs /usr/bin/g++-15 /usr/bin/g++
 RUN ln -fs /usr/bin/gcc-15 /usr/bin/gcc
 
 ARG USERNAME=dev
-ARG USER_UID=1000
-ARG USER_GID=1000
+ARG USER_UID=1300
+ARG USER_GID=1300
 
 RUN printf "\n\n\nReceived args:\n\tUSERNAME=$USERNAME\n\tUSER_UID=$USER_UID\n\tUSER_GID=$USER_GID\n"
 RUN test -n "$USER_UID" && test -n "$USER_GID" || (printf "\n\n\n\tERROR: USER_UID (equal to '$USER_UID') or USER_GID (equal to '$USER_GID') is not set!\n\n\n" && exit 1)
@@ -39,19 +39,37 @@ RUN set -e; \
         groupdel ubuntu 2>/dev/null || true; \
     fi;
 
-# Create a non-root user 'dev' with host UID/GID
+# Create a non-root user that matches the host UID/GID when possible.
 RUN set -e; \
-    echo "Create group $USERNAME with GID=$USER_GID"; \
-    groupadd --gid $USER_GID $USERNAME; \
+    GROUP_NAME="$USERNAME"; \
+    EXISTING_GROUP="$(getent group "$USER_GID" | cut -d: -f1 || true)"; \
+    if [ -n "$EXISTING_GROUP" ]; then \
+        echo "GID=$USER_GID already exists as group '$EXISTING_GROUP', reuse it"; \
+        GROUP_NAME="$EXISTING_GROUP"; \
+    elif getent group "$USERNAME" >/dev/null 2>&1; then \
+        echo "Group '$USERNAME' already exists, update it to GID=$USER_GID"; \
+        groupmod --gid "$USER_GID" "$USERNAME"; \
+        GROUP_NAME="$USERNAME"; \
+    else \
+        echo "Create group $USERNAME with GID=$USER_GID"; \
+        groupadd --gid "$USER_GID" "$USERNAME"; \
+        GROUP_NAME="$USERNAME"; \
+    fi; \
     \
-    echo "Create user $USERNAME with UID=$USER_UID and GID=$USER_GID"; \
-    useradd -ms /bin/bash --uid $USER_UID --gid $USER_GID $USERNAME; \
+    EXISTING_USER="$(getent passwd "$USERNAME" | cut -d: -f1 || true)"; \
+    if [ -n "$EXISTING_USER" ]; then \
+        echo "User '$USERNAME' already exists, update UID/GID"; \
+        usermod --uid "$USER_UID" --gid "$GROUP_NAME" --shell /bin/bash "$USERNAME"; \
+    else \
+        echo "Create user $USERNAME with UID=$USER_UID and GID=$GROUP_NAME"; \
+        useradd -ms /bin/bash --uid "$USER_UID" --gid "$GROUP_NAME" "$USERNAME"; \
+    fi; \
     \
     # Configure NOPASSWD option
     echo "$USERNAME ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/$USERNAME; \
     chmod 0440 /etc/sudoers.d/$USERNAME; \
     \
-    echo "User $USERNAME with UID=$USER_UID and GID=$USER_GID was successfully created"
+    echo "User $USERNAME with UID=$USER_UID and GID=$USER_GID was successfully configured"
 
 # Switch to non-root user
 USER $USERNAME
